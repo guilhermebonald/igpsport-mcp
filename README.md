@@ -81,3 +81,8 @@ O assistente salva as credenciais no arquivo de configuração local e exibe o b
 - **Segmentos**: `list_starred_segments`, `get_segment_leaderboard`, `get_segment_efforts`.
 - **Perfil**: `get_athlete_profile`.
 - **Treinos Estruturados**: `list_workouts`, `get_workout_detail`, `create_workout` (compilação IR para ciclocomputador), `delete_workout`.
+
+## Créditos
+
+Este projeto é um fork aprimorado do trabalho original desenvolvido por [dengxuhui](https://github.com/dengxuhui/igpsport-mcp). Agradecimentos pelo pioneirismo na engenharia reversa das APIs e integração inicial do ecossistema iGPSport.
+

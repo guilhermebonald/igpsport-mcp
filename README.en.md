@@ -83,3 +83,8 @@ The wizard saves credentials to a config file (owner-readable only) and prints a
 - **Segments**: `list_starred_segments`, `get_segment_leaderboard`, `get_segment_efforts`.
 - **Athlete**: `get_athlete_profile`.
 - **Workouts**: `list_workouts`, `get_workout_detail`, `create_workout` (IR compilation for head unit), `delete_workout`.
+
+## Credits
+
+This project is an enhanced fork of the original work created by [dengxuhui](https://github.com/dengxuhui/igpsport-mcp). Thanks to the original author for reverse engineering the APIs and pioneering the iGPSport MCP integration.
+
