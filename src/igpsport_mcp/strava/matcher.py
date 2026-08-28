@@ -170,7 +170,11 @@ def match_segment_on_dataframe(
             diffs = np.diff(alts)
             elev_gain = float(np.sum(diffs[diffs > 0]))
 
-        vam = round((elev_gain / elapsed_s) * 3600.0, 1) if (elapsed_s > 0 and elev_gain > 5) else None
+        vam = (
+            round((elev_gain / elapsed_s) * 3600.0, 1)
+            if (elapsed_s > 0 and elev_gain > 5)
+            else None
+        )
 
         start_offset = int((t_start - first_activity_ts).total_seconds())
         end_offset = int((t_end - first_activity_ts).total_seconds())

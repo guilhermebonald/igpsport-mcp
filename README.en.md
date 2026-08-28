@@ -1,90 +1,154 @@
 <!-- mcp-name: io.github.guilhermebonald/igpsport-mcp -->
 # igpsport-mcp
 
-**English** | [Português](https://github.com/guilhermebonald/igpsport-mcp/blob/main/README.md) | [简体中文](https://github.com/guilhermebonald/igpsport-mcp/blob/main/README.zh-CN.md)
+[Português](README.md) | **English** | [简体中文](README.zh-CN.md)
 
-A local [MCP](https://modelcontextprotocol.io) server that connects your **iGPSport cycling data** to LLM clients like Claude. Analyze your training in natural language: *"How's my training load this week?"* *"Compare my two long rides from last week and this week."* *"What's my ranking on that climb I starred?"* *"How many kilometers did I ride this year, and what are my personal bests?"* — and even **have Claude prescribe workouts for you**: *"Build me a 2×20 SST session based on my FTP and push it to my head unit."*
+A local [MCP](https://modelcontextprotocol.io) server connecting your **iGPSport cycling and Strava data** to LLM clients such as Claude Desktop, Claude Code, and Cursor. Analyze rides in natural language, perform offline GPS map-matching against Strava segments without uploading to Strava, and push structured workouts directly to your bike computer.
 
-**Key differentiator**: Derived training metrics — NP / IF / TSS / CTL / ATL / TSB — are **computed server-side in the MCP layer** before being returned. The LLM receives story-ready numbers, not raw stream data.
+---
 
-```
-You:   What's my training load trend over the last 90 days? Should I back off?
-Claude (via analyze_training_load):
-       Current CTL (Fitness) 72, ATL (Fatigue) 91, TSB (Form) -19 — you're in a significant fatigue hole.
-       TSS has been above CTL for the past two weeks. Consider a 3–5 day recovery block to get TSB back above -5…
-```
+## Key Features
+
+- ⚡ **Derived Training Metrics**: Server-side NP, IF, TSS, hrTSS, CTL (Fitness), ATL (Fatigue), and TSB (Form) calculated locally (< 2% variance vs. Strava/TrainingPeaks).
+- 🗺️ **Offline Strava Segments Integration**: Spatial map-matching engine (vectorized Haversine) running on raw iGPSport `.fit` telemetry. Computes times, speed, power, HR, and VAM against Strava starred segments, PRs, and KOMs **without uploading the ride to Strava**.
+- 📋 **Structured Workout Prescription**: Compose workouts in natural language (e.g. *2x20min SST*) and push directly to iGPSport App / head unit with optional iCal calendar export.
+- 🔒 **100% Local & Private**: Operates via stdio with local SQLite database (`activities.db`) and `.fit` file caching. Zero telemetry shared with third-party servers.
+- 🌐 **Multi-Language & Multi-Region**: Portuguese (`pt`), English (`en`), and Chinese (`zh`). Compatible with International (`app.igpsport.com`) and China (`app.igpsport.cn` with WASM) servers.
+
+---
 
 ## Demo
 
-![igpsport-mcp demo](assets/demo.gif)
+```
+You:    Analyze my training load over the last 90 days and check if I hit any PRs on today's segments.
+Claude: 
+  📊 Training Load:
+  - CTL (Fitness): 72 | ATL (Fatigue): 91 | TSB (Form): -19 (Significant fatigue buildup, suggest 3 recovery days).
+  
+  🏆 Matched Strava Segments for Ride 90672495 (49.46 km):
+  1. Ponte Iúna até ICC (2.41 km): 7m02s (20.6 km/h, VAM 165 m/h) | Your PR: 4m27s | KOM: 3m36s
+  2. SUBIDINHA (713 m, 11.9%): 4m59s (8.6 km/h, VAM 1,004 m/h) | Your PR/KOM: 3m23s
+  3. Subida do Dante (538 m, 6.0%): 3m32s (9.1 km/h, VAM 571 m/h) | Your PR: 1m29s | KOM: 1m25s
+```
 
-> ⚠️ **Unofficial project**. This tool works by **simulating iGPSport web client requests**. iGPSport may change their API at any time, which could break functionality. Please evaluate account risk yourself — **use at your own risk**. Runs entirely locally over stdio — **your data never touches any third-party server**.
+---
 
-## Quick Start (Recommended)
+## Quick Start
 
-This tool is an MCP server and requires an **MCP-capable client** (e.g. [Claude Desktop](https://claude.ai/download) / Claude Code / Cursor). Once you have a client ready, three steps:
-
-**1. Install uv** (a standalone tool — **you do not need Python pre-installed**, uv handles the runtime automatically):
+### 1. Install `uv` (Fast Python Package Manager)
 
 ```bash
 # macOS / Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Windows (PowerShell)
 powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-**2. Install globally and run the setup wizard** (interactively enter your phone/email and password — credentials stay local). The commands are the same on both systems; run them in **Terminal** on macOS or **PowerShell** on Windows:
+### 2. Install and run the Interactive Setup
 
 ```bash
 uv tool install igpsport-mcp
 igpsport-mcp --setup --lang en
 ```
 
-> If `igpsport-mcp` is not found after installation, open a new terminal/PowerShell window so PATH updates take effect (uv places executables in `~/.local/bin` on macOS, `%USERPROFILE%\.local\bin` on Windows).
-
-The wizard saves credentials to a config file (owner-readable only) and prints a **copy-paste ready** MCP configuration block. Config file locations:
-
+The wizard saves credentials to:
 - **macOS / Linux**: `~/.igpsport-mcp/config.json`
 - **Windows**: `C:\Users\YourName\.igpsport-mcp\config.json`
 
-**3. Paste the printed config into your client**, then restart the client.
+### 3. Add to your MCP Client (Claude Desktop / Cursor)
 
-> Want to verify your credentials before pasting? Run `igpsport-mcp --check --lang en`.
-> Need to print the config snippet again later? `igpsport-mcp --mcp-config --lang en`.
+Add to `claude_desktop_config.json`:
 
-## CLI Usage
+```json
+{
+  "mcpServers": {
+    "igpsport": {
+      "command": "uvx",
+      "args": ["igpsport-mcp"],
+      "env": {
+        "IGPSPORT_USERNAME": "your_email@example.com",
+        "IGPSPORT_PASSWORD": "your_password",
+        "IGPSPORT_REGION": "intl",
+        "STRAVA_CLIENT_ID": "your_client_id",
+        "STRAVA_CLIENT_SECRET": "your_client_secret",
+        "STRAVA_REFRESH_TOKEN": "your_refresh_token"
+      }
+    }
+  }
+}
+```
+
+---
+
+## CLI Commands
 
 | Command | Purpose |
 |---|---|
-| `igpsport-mcp --setup` | Interactive setup wizard: enter phone/email + password, saved to local config.json |
-| `igpsport-mcp --mcp-config` | Print a copy-paste ready MCP client configuration block |
-| `igpsport-mcp --check` | Perform a real login to verify credentials |
-| `igpsport-mcp --lang en\|pt\|zh` | Set output language (also settable via `IGPSPORT_LANG` env var; default `zh`) |
-| `igpsport-mcp --version` | Print version number |
-| `igpsport-mcp --help` | Show help |
+| `igpsport-mcp --setup` | Interactive setup wizard |
+| `igpsport-mcp --check` | Verify iGPSport and Strava credentials |
+| `igpsport-mcp --mcp-config` | Print MCP client JSON configuration block |
+| `igpsport-mcp --lang en\|pt\|zh` | Set CLI display language (default `en` or `pt`) |
+| `igpsport-mcp --version` | Display version |
 
-## Configuration (Environment Variables)
+---
 
-| Variable | Required | Description |
-|---|---|---|
-| `IGPSPORT_USERNAME` | ✅ | iGPSport account (phone number for CN / email for international) |
-| `IGPSPORT_PASSWORD` | ✅ | Password |
-| `IGPSPORT_REGION` | Optional | Region: `cn` (China server `app.igpsport.cn`) or `intl` (international server `app.igpsport.com`) |
-| `IGPSPORT_FTP` | Optional | Functional Threshold Power in watts. **Auto-read from iGPSport profile**; set to override |
-| `IGPSPORT_LTHR` | Optional | Lactate Threshold Heart Rate in bpm. **Auto-read from iGPSport profile**; set to override |
-| `IGPSPORT_LANG` | Optional | Output language, `en`, `pt`, or `zh` (default `zh`) |
-| `IGPSPORT_CACHE_DIR` | Optional | Cache directory |
-| `IGPSPORT_LOG_LEVEL` | Optional | Default `INFO` |
+## Available MCP Tools (21 Tools)
 
-## Available MCP Tools (17 tools)
+### 🚴 Activities & Performance (9 tools)
+- `list_activities`: Paginated activity history with dates, distances, and sync status.
+- `get_activity_summary`: Comprehensive summary (distance, elevation, NP, IF, TSS, hrTSS, power & HR zones).
+- `get_activity_streams`: Continuous 1Hz time series (power, HR, cadence, altitude, speed) with downsampling.
+- `get_activity_laps`: Lap-by-lap splits with per-lap averages.
+- `get_athlete_profile`: Athlete profile (weight, max HR, FTP, LTHR, calculated zones).
+- `get_athlete_stats`: Aggregated distance, duration, and elevation stats.
+- `get_member_statistics`: Annual totals and personal bests.
+- `compare_activities`: Side-by-side comparison of 2–5 activities.
+- `estimate_thresholds`: FTP and LTHR estimation from historical Mean-Max Power (MMP).
 
-- **Activities & Summary**: `list_activities`, `get_activity_summary`, `get_activity_laps`, `get_activity_streams`, `compare_activities`, `get_yearly_stats`, `get_personal_records`.
-- **Advanced Training Analysis**: `analyze_training_load` (CTL/ATL/TSB), `estimate_thresholds` (MMP, FTP, LTHR).
-- **Segments**: `list_starred_segments`, `get_segment_leaderboard`, `get_segment_efforts`.
-- **Athlete**: `get_athlete_profile`.
-- **Workouts**: `list_workouts`, `get_workout_detail`, `create_workout` (IR compilation for head unit), `delete_workout`.
+### 📈 Training Load & Periodization (1 tool)
+- `analyze_training_load`: Long-term Fitness (CTL, 42d), Fatigue (ATL, 7d), and Form (TSB) analysis.
 
-## Credits
+### 🗺️ Strava Segments & Map-Matching (4 tools)
+- `sync_strava_segments`: Cache starred Strava segments with polylines into local SQLite.
+- `match_activity_segments`: Run spatial map-matching on iGPSport FIT files to calculate segment efforts, VAM, speed, power, and HR.
+- `get_strava_segment_leaderboard`: Strava KOM/QOM and top 10 rankings.
+- `compare_segment_efforts`: Historical effort comparisons on the same segment across rides.
 
-This project is an enhanced fork of the original work created by [dengxuhui](https://github.com/dengxuhui/igpsport-mcp). Thanks to the original author for reverse engineering the APIs and pioneering the iGPSport MCP integration.
+### 🏔️ Native iGPSport Segments (3 tools - CN server only)
+- `list_segments_collected`: Starred segments on iGPSport.
+- `get_segment_detail`: Elevation, grade, and personal PR.
+- `get_segment_rank`: Official iGPSport leaderboard.
 
+### 📝 Structured Workouts (4 tools)
+- `list_workouts`: List workouts saved on iGPSport cloud.
+- `get_workout_detail`: Workout steps, targets, and intervals.
+- `create_workout`: Compile workout IR into native head unit format (`dry_run` and iCal export supported).
+- `delete_workout`: Delete workout (requires `confirm=True`).
+
+---
+
+## Configuration & Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `IGPSPORT_USERNAME` | ✅ | - | Account email (intl) or phone (CN) |
+| `IGPSPORT_PASSWORD` | ✅ | - | Account password |
+| `IGPSPORT_REGION` | Optional | `intl` | Region: `intl` (`app.igpsport.com`) or `cn` (`app.igpsport.cn`) |
+| `STRAVA_CLIENT_ID` | Optional | - | Strava API Client ID |
+| `STRAVA_CLIENT_SECRET` | Optional | - | Strava API Client Secret |
+| `STRAVA_REFRESH_TOKEN` | Optional | - | Strava OAuth2 Refresh Token (`activity:read_all`) |
+| `IGPSPORT_FTP` | Optional | Auto | FTP in watts (overrides cloud profile if specified) |
+| `IGPSPORT_LTHR` | Optional | Auto | Lactate Threshold Heart Rate in bpm |
+| `IGPSPORT_LANG` | Optional | `pt` | CLI interface language (`pt`, `en`, `zh`) |
+| `IGPSPORT_CACHE_DIR` | Optional | `~/.cache/igpsport-mcp` | Cache directory |
+| `IGPSPORT_LOG_LEVEL` | Optional | `INFO` | Log level |
+
+---
+
+## Credits & Attribution
+
+- **Maintenance & Advanced Features (Strava Segments, PT i18n, Map-Matching)**: [Guilherme Bonald](https://github.com/guilhermebonald)
+- **Original Author & Initial Reverse Engineering**: [dengxuhui](https://github.com/dengxuhui/igpsport-mcp)
+
+Distributed under the MIT License.

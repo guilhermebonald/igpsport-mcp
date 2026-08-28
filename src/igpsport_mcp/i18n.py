@@ -27,7 +27,8 @@ _CATALOG: dict[str, dict[str, str]] = {
         "setup_username_prompt": "  Telefone / E-mail: ",
         "setup_password_prompt": "  Senha:             ",
         "setup_optional_hint": (
-            "\n  Os dois itens a seguir são opcionais (deixe em branco para ler do perfil iGPSport):\n"
+            "\n  Os dois itens a seguir são opcionais "
+            "(deixe em branco para ler do perfil iGPSport):\n"
         ),
         "setup_ftp_prompt": (
             "  FTP potência limiar / watts (máx 1h) (opcional, Enter para pular) [{default}]: "
@@ -39,11 +40,14 @@ _CATALOG: dict[str, dict[str, str]] = {
             "❌ Telefone/E-mail e senha não podem ficar vazios. Não salvo. Execute novamente."
         ),
         "setup_saved": "✅ Configuração salva em {path}\n",
-        "mcp_config_header": "📋 Copie o JSON abaixo para o arquivo de configuração do Claude Desktop:",
+        "mcp_config_header": (
+            "📋 Copie o JSON abaixo para o arquivo de configuração do Claude Desktop:"
+        ),
         "mcp_config_path": "   Caminho: {path}\n",
         "mcp_config_add": '   Adicione sob "mcpServers":',
         "mcp_config_tip_stored": (
-            "  💡 Credenciais salvas no config.json local — sem necessidade de variáveis de ambiente.\n"
+            "  💡 Credenciais salvas no config.json local — "
+            "sem necessidade de variáveis de ambiente.\n"
         ),
         "mcp_config_tip_cc": "  📖 Usuários do Claude Code também podem usar:",
         # ── Workout intensity labels (workout/ics.py) ──

@@ -160,12 +160,12 @@ class WasmSigner:
             args: list[int] = []
             try:
                 for text in (method, full_path, timestamp, nonce):
-                    p, l = self._malloc(text.encode("utf-8"))
-                    allocated.append((p, l))
-                    args.extend((p, l))
-                p, l = self._malloc(body.encode("utf-8"))
-                allocated.append((p, l))
-                args.extend((p, l))
+                    p_ptr, p_len = self._malloc(text.encode("utf-8"))
+                    allocated.append((p_ptr, p_len))
+                    args.extend((p_ptr, p_len))
+                p_ptr, p_len = self._malloc(body.encode("utf-8"))
+                allocated.append((p_ptr, p_len))
+                args.extend((p_ptr, p_len))
 
                 ptr, length, _err_ptr, err_flag = self._exports["generate_signature"](
                     self._store, *args
@@ -176,5 +176,5 @@ class WasmSigner:
                 self._free(ptr, length)
                 return signature
             finally:
-                for p, l in allocated:
-                    self._free(p, l)
+                for p_ptr, p_len in allocated:
+                    self._free(p_ptr, p_len)

@@ -44,7 +44,7 @@ def register(server: FastMCP, service: IGPSportService) -> None:
     def match_activity_segments(
         ride_id: str, segment_ids: list[int] | None = None
     ) -> dict[str, Any]:
-        """Map-match GPS from an iGPSport activity FIT against Strava segments to compute efforts, power, HR, and VAM."""
+        """Map-match GPS from an iGPSport activity FIT against Strava segments."""
         return service.match_activity_segments(ride_id, segment_ids)
 
     @server.tool()
@@ -58,4 +58,3 @@ def register(server: FastMCP, service: IGPSportService) -> None:
     ) -> dict[str, Any]:
         """Compare all historical efforts and PRs on a Strava segment across iGPSport rides."""
         return service.compare_segment_efforts(segment_id, ride_ids)
-

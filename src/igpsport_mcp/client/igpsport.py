@@ -80,9 +80,7 @@ class IGPSportClient:
     ) -> None:
         self._config = config
         self._profile: RegionProfile = get_profile(config.region)
-        self._http = http or httpx.Client(
-            base_url=self._profile.api_base, timeout=30.0
-        )
+        self._http = http or httpx.Client(base_url=self._profile.api_base, timeout=30.0)
         self._tokens = TokenStore(config.token_path)
         self._token: Token | None = None
         # Signers are only used in CN mode (WASM signing).

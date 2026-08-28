@@ -37,7 +37,9 @@ class StravaClient:
     def _ensure_access_token(self) -> str:
         """Fetch or refresh OAuth2 access token if needed."""
         if not self.is_configured:
-            raise ValueError("Strava credentials not configured (client_id/client_secret/refresh_token missing)")
+            raise ValueError(
+                "Strava credentials not configured (client_id/client_secret/refresh_token missing)"
+            )
 
         now = time.time()
         if self._access_token and now < (self._token_expires_at - 300):
@@ -70,7 +72,9 @@ class StravaClient:
 
     def get_starred_segments(self, page: int = 1, per_page: int = 50) -> list[dict[str, Any]]:
         """Fetch athlete starred segments."""
-        return self._request("GET", "/segments/starred", params={"page": page, "per_page": per_page})
+        return self._request(
+            "GET", "/segments/starred", params={"page": page, "per_page": per_page}
+        )
 
     def get_segment(self, segment_id: int) -> dict[str, Any]:
         """Fetch full segment details including polyline."""
@@ -80,10 +84,17 @@ class StravaClient:
         self, segment_id: int, page: int = 1, per_page: int = 10
     ) -> dict[str, Any]:
         """Fetch public leaderboard for a segment."""
-        return self._request("GET", f"/segments/{segment_id}/leaderboard", params={"page": page, "per_page": per_page})
+        return self._request(
+            "GET",
+            f"/segments/{segment_id}/leaderboard",
+            params={"page": page, "per_page": per_page},
+        )
 
     def explore_segments(
-        self, south_west: tuple[float, float], north_east: tuple[float, float], activity_type: str = "riding"
+        self,
+        south_west: tuple[float, float],
+        north_east: tuple[float, float],
+        activity_type: str = "riding",
     ) -> list[dict[str, Any]]:
         """Search segments inside a bounding box [lat_sw, lng_sw, lat_ne, lng_ne]."""
         bounds = f"{south_west[0]},{south_west[1]},{north_east[0]},{north_east[1]}"

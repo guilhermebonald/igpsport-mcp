@@ -61,6 +61,12 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from ..exceptions import IGPSportError
+
+
+class WorkoutValidationError(IGPSportError):
+    """Validation failed on workout IR."""
+
 # ---------- intensityClass ----------
 
 _INTENSITY_MAP = {

@@ -8,6 +8,7 @@ analysis layer in later phases.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
 from datetime import UTC, datetime
@@ -237,7 +238,9 @@ def get_strava_segment_by_id(conn: sqlite3.Connection, segment_id: int) -> dict[
 
 def save_segment_effort(conn: sqlite3.Connection, effort: dict[str, Any]) -> None:
     """Insert or update a computed segment effort."""
-    effort_id = effort.get("id") or f"{effort['ride_id']}_{effort['segment_id']}_{effort['start_offset_s']}"
+    effort_id = (
+        effort.get("id") or f"{effort['ride_id']}_{effort['segment_id']}_{effort['start_offset_s']}"
+    )
     row = {
         "id": effort_id,
         "ride_id": str(effort["ride_id"]),
@@ -281,8 +284,7 @@ def get_segment_efforts(
         )
     else:
         cursor = conn.execute(
-            "SELECT * FROM strava_segment_efforts WHERE segment_id = ? "
-            "ORDER BY elapsed_time_s ASC",
+            "SELECT * FROM strava_segment_efforts WHERE segment_id = ? ORDER BY elapsed_time_s ASC",
             (segment_id,),
         )
     return [dict(r) for r in cursor.fetchall()]
@@ -304,7 +306,8 @@ def upsert_strava_leaderboard(
         "fetched_at": _now_iso(),
     }
     conn.execute(
-        "INSERT INTO strava_leaderboards (segment_id, leaderboard_json, kom_time_s, kom_athlete, fetched_at) "
+        "INSERT INTO strava_leaderboards "
+        "(segment_id, leaderboard_json, kom_time_s, kom_athlete, fetched_at) "
         "VALUES (:segment_id, :leaderboard_json, :kom_time_s, :kom_athlete, :fetched_at) "
         "ON CONFLICT(segment_id) DO UPDATE SET "
         "leaderboard_json=excluded.leaderboard_json, kom_time_s=excluded.kom_time_s, "
@@ -324,4 +327,3 @@ def get_strava_leaderboard(conn: sqlite3.Connection, segment_id: int) -> dict[st
     with contextlib.suppress(Exception):
         res["data"] = json.loads(res["leaderboard_json"])
     return res
-

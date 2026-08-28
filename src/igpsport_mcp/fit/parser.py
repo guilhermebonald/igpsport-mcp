@@ -78,6 +78,12 @@ def resample_to_1hz(records: list[dict[str, Any]]) -> pd.DataFrame:
     if "timestamp" not in df.columns:
         raise FitParseFailed("FIT records have no 'timestamp' field")
 
+    # Rename position_lat / position_long to standard latitude / longitude if needed
+    if "position_lat" in df.columns and "latitude" not in df.columns:
+        df["latitude"] = df["position_lat"]
+    if "position_long" in df.columns and "longitude" not in df.columns:
+        df["longitude"] = df["position_long"]
+
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
     df = df.dropna(subset=["timestamp"]).set_index("timestamp").sort_index()
 
