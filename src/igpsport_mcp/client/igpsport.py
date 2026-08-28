@@ -81,7 +81,7 @@ class IGPSportClient:
         self._config = config
         self._profile: RegionProfile = get_profile(config.region)
         self._http = http or httpx.Client(
-            base_url=self._profile.api_base, timeout=30.0, verify=False
+            base_url=self._profile.api_base, timeout=30.0
         )
         self._tokens = TokenStore(config.token_path)
         self._token: Token | None = None
@@ -265,7 +265,8 @@ class IGPSportClient:
 
     def download_fit(self, ride_id: str | int) -> Path:
         """Download (or return the cached) FIT for a ride. Permanent local cache."""
-        dest = self._config.fit_dir / f"{ride_id}.fit"
+        clean_id = Path(str(ride_id)).name
+        dest = self._config.fit_dir / f"{clean_id}.fit"
         if dest.exists() and dest.stat().st_size > 0:
             return dest
 

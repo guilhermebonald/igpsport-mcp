@@ -243,9 +243,13 @@ def _compile_one(step: dict[str, Any], ftp: float | None) -> dict[str, Any]:
         it: dict[str, Any] = {"unit": unit, "value": target.get("value", 0)}
 
         if ttype in ("power_custom", "power_percent_ftp", "hr_custom", "cadence", "speed"):
-            min_v = target.get("min", 0)
-            max_v = target.get("max", 0)
-            if ttype == "power_percent_ftp" and ftp:
+            min_v = target.get("min") or 0
+            max_v = target.get("max") or 0
+            if ttype == "power_percent_ftp":
+                if not ftp or ftp <= 0:
+                    raise WorkoutValidationError(
+                        "Target 'power_percent_ftp' requires user FTP to compile to watts"
+                    )
                 min_v = round(min_v / 100 * ftp)
                 max_v = round(max_v / 100 * ftp)
                 it["unit"] = "PowerCustom"

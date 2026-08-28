@@ -125,7 +125,7 @@ def _ftp_confidence(ftp_20: float, cp: float | None) -> str:
     one — i.e. the 20-min effort was likely submaximal, so the estimate may
     underestimate FTP.
     """
-    if cp is None:
+    if cp is None or ftp_20 <= 0:
         return "medium"
     diff = abs(cp - ftp_20) / ftp_20
     if diff < 0.05:
@@ -227,6 +227,7 @@ def estimate_thresholds(
     data can't support an estimate), the window actually used, and per-channel
     activity counts. Estimates always carry a confidence level and a caveat.
     """
+    activities = list(activities)
     if not activities:
         return {
             "ftp": None,

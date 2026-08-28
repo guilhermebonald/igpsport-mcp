@@ -8,9 +8,64 @@ from __future__ import annotations
 
 from typing import Any
 
-_SUPPORTED = frozenset({"zh", "en"})
+_SUPPORTED = frozenset({"zh", "en", "pt"})
 
 _CATALOG: dict[str, dict[str, str]] = {
+    "pt": {
+        # ── CLI output (__main__.py) ──
+        "unknown_args": "Argumentos desconhecidos: {args}",
+        "check_failed": "❌ Falha na verificação: {exc}",
+        "check_failed_unexpected": "❌ Falha na verificação (erro inesperado): {exc}",
+        "check_success": "✅ Login realizado com sucesso, credenciais válidas (conta {username}).",
+        # ── Setup wizard (config.py) ──
+        "setup_banner": "\n🔧 igpsport-mcp Primeira Configuração\n",
+        "setup_desc": "Insira os dados da sua conta iGPSport (apenas local, nunca enviado):\n",
+        "setup_region_prompt": "  Selecione a região da sua conta iGPSport:",
+        "setup_region_option_cn": "    1. China (app.igpsport.cn)        ← Contas chinesas",
+        "setup_region_option_intl": "    2. Internacional (app.igpsport.com) ← Contas globais\n",
+        "setup_region_input": "  Digite 1 ou 2 (padrão 2): ",
+        "setup_username_prompt": "  Telefone / E-mail: ",
+        "setup_password_prompt": "  Senha:             ",
+        "setup_optional_hint": (
+            "\n  Os dois itens a seguir são opcionais (deixe em branco para ler do perfil iGPSport):\n"
+        ),
+        "setup_ftp_prompt": (
+            "  FTP potência limiar / watts (máx 1h) (opcional, Enter para pular) [{default}]: "
+        ),
+        "setup_lthr_prompt": (
+            "  LTHR FC limiar de lactato / bpm (opcional, Enter para pular) [{default}]: "
+        ),
+        "setup_empty_credentials": (
+            "❌ Telefone/E-mail e senha não podem ficar vazios. Não salvo. Execute novamente."
+        ),
+        "setup_saved": "✅ Configuração salva em {path}\n",
+        "mcp_config_header": "📋 Copie o JSON abaixo para o arquivo de configuração do Claude Desktop:",
+        "mcp_config_path": "   Caminho: {path}\n",
+        "mcp_config_add": '   Adicione sob "mcpServers":',
+        "mcp_config_tip_stored": (
+            "  💡 Credenciais salvas no config.json local — sem necessidade de variáveis de ambiente.\n"
+        ),
+        "mcp_config_tip_cc": "  📖 Usuários do Claude Code também podem usar:",
+        # ── Workout intensity labels (workout/ics.py) ──
+        "intensity_warmup": "Aquecimento",
+        "intensity_active": "Principal",
+        "intensity_rest": "Descanso",
+        "intensity_cooldown": "Desaquecimento",
+        # ── Workout target labels (workout/ics.py) ──
+        "target_power_zone": "Zona de Potência",
+        "target_power_custom": "Potência",
+        "target_power_percent_ftp": "%FTP",
+        "target_hr_zone": "Zona de FC",
+        "target_hr_custom": "FC",
+        "target_cadence": "Cadência",
+        "target_speed": "Velocidade",
+        # ── Workout format strings (workout/ics.py) ──
+        "workout_summary": "{title} · {n} etapas · ~{m} min",
+        "repeat_times": "Repetir {n}x",
+        "lap_button": "Botão de volta",
+        "minute_unit": "{n} min",
+        "second_unit": "{n} seg",
+    },
     "zh": {
         # ── CLI output (__main__.py) ──
         "unknown_args": "未知参数: {args}",

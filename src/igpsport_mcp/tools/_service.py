@@ -280,7 +280,7 @@ class IGPSportService:
             duration_s = lap.get("total_timer_time") or lap.get("total_elapsed_time") or 0
             np_w = None
             if activity_start is not None and lap_start is not None and "power" in df.columns:
-                start = pd.Timestamp(lap_start, tz="UTC")
+                start = pd.to_datetime(lap_start, utc=True)
                 seg = df[
                     (df["timestamp"] >= start)
                     & (df["timestamp"] < start + pd.Timedelta(seconds=duration_s))
@@ -288,7 +288,7 @@ class IGPSportService:
                 np_w = power.normalized_power(seg["power"].tolist())
             offset = 0
             if activity_start is not None and lap_start is not None:
-                offset = int((pd.Timestamp(lap_start, tz="UTC") - activity_start).total_seconds())
+                offset = int((pd.to_datetime(lap_start, utc=True) - activity_start).total_seconds())
             laps.append(
                 {
                     "lap_index": i,

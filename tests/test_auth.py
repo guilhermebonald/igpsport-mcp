@@ -1,4 +1,5 @@
 import json
+import sys
 
 import pytest
 
@@ -38,7 +39,8 @@ def test_token_store_roundtrip(tmp_path):
     store.save(token)
     loaded = store.load()
     assert loaded == token
-    assert (tmp_path / "token.json").stat().st_mode & 0o777 == 0o600
+    if sys.platform != "win32":
+        assert (tmp_path / "token.json").stat().st_mode & 0o777 == 0o600
 
     # Verify the serialized JSON contains the new fields.
     raw = json.loads((tmp_path / "token.json").read_text())

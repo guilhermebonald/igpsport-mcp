@@ -66,6 +66,10 @@ class TestLangConfig:
         cfg = load_config({"IGPSPORT_LANG": "de"})
         assert cfg.lang == "zh"
 
+    def test_lang_portuguese(self):
+        cfg = load_config({"IGPSPORT_LANG": "pt"})
+        assert cfg.lang == "pt"
+
     def test_lang_parameter_overrides_env(self):
         cfg = load_config({"IGPSPORT_LANG": "zh"}, lang="en")
         assert cfg.lang == "en"

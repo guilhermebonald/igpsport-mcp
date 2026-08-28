@@ -156,16 +156,25 @@ class WasmSigner:
             if not self._session_ready:
                 raise SignerError("generate_signature called before init_session_key")
             assert self._exports is not None
+            allocated: list[tuple[int, int]] = []
             args: list[int] = []
-            for text in (method, full_path, timestamp, nonce):
-                args.extend(self._malloc(text.encode("utf-8")))
-            args.extend(self._malloc(body.encode("utf-8")))
+            try:
+                for text in (method, full_path, timestamp, nonce):
+                    p, l = self._malloc(text.encode("utf-8"))
+                    allocated.append((p, l))
+                    args.extend((p, l))
+                p, l = self._malloc(body.encode("utf-8"))
+                allocated.append((p, l))
+                args.extend((p, l))
 
-            ptr, length, _err_ptr, err_flag = self._exports["generate_signature"](
-                self._store, *args
-            )
-            if err_flag:
-                raise SignerError("WASM generate_signature failed")
-            signature = self._read(ptr, length).decode("utf-8")
-            self._free(ptr, length)
-            return signature
+                ptr, length, _err_ptr, err_flag = self._exports["generate_signature"](
+                    self._store, *args
+                )
+                if err_flag:
+                    raise SignerError("WASM generate_signature failed")
+                signature = self._read(ptr, length).decode("utf-8")
+                self._free(ptr, length)
+                return signature
+            finally:
+                for p, l in allocated:
+                    self._free(p, l)

@@ -268,10 +268,8 @@ def load_config(
     if not region and file_creds.get("region"):
         region = file_creds["region"]
 
-    # Layer 3: interactive (only when requested or auto-detected tty)
-    should_prompt = interactive or (
-        sys_is_tty() and not username and not password and not CONFIG_FILE.exists()
-    )
+    # Layer 3: interactive (only when explicitly requested)
+    should_prompt = interactive
 
     # Resolve language before passing to interactive prompt
     if lang is not None and _lang_supported(lang):

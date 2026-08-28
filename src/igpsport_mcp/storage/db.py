@@ -54,8 +54,11 @@ def _now_iso() -> str:
 
 def upsert_activity(conn: sqlite3.Connection, activity: dict[str, Any]) -> None:
     """Insert or update a single normalized activity row."""
+    ride_id = activity.get("ride_id")
+    if ride_id is None:
+        return
     row = {col: activity.get(col) for col in _ACTIVITY_COLUMNS}
-    row["ride_id"] = str(row["ride_id"])
+    row["ride_id"] = str(ride_id)
     if isinstance(row["raw_json"], (dict, list)):
         row["raw_json"] = json.dumps(row["raw_json"], ensure_ascii=False)
     row["fetched_at"] = row["fetched_at"] or _now_iso()
@@ -75,8 +78,11 @@ def upsert_activities(conn: sqlite3.Connection, activities: list[dict[str, Any]]
         return
     rows = []
     for activity in activities:
+        ride_id = activity.get("ride_id")
+        if ride_id is None:
+            continue
         row = {col: activity.get(col) for col in _ACTIVITY_COLUMNS}
-        row["ride_id"] = str(row["ride_id"])
+        row["ride_id"] = str(ride_id)
         if isinstance(row["raw_json"], (dict, list)):
             row["raw_json"] = json.dumps(row["raw_json"], ensure_ascii=False)
         row["fetched_at"] = row["fetched_at"] or _now_iso()
