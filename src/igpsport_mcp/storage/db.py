@@ -180,3 +180,148 @@ def save_activity_metrics(
         # via list_activities first. Degrade gracefully — next call that
         # goes through list_activities will populate the FK.
         pass
+
+
+# ── Strava storage ──────────────────────────────────────────────────────────
+
+
+def upsert_strava_segment(conn: sqlite3.Connection, segment: dict[str, Any]) -> None:
+    """Insert or update a Strava segment definition."""
+    segment_id = segment.get("segment_id") or segment.get("id")
+    if not segment_id:
+        return
+    start_latlng = segment.get("start_latlng") or [None, None]
+    end_latlng = segment.get("end_latlng") or [None, None]
+    row = {
+        "segment_id": int(segment_id),
+        "name": str(segment.get("name", "")),
+        "activity_type": segment.get("activity_type", "Ride"),
+        "distance_m": float(segment.get("distance", 0.0)),
+        "average_grade": float(segment.get("average_grade", 0.0)),
+        "maximum_grade": float(segment.get("maximum_grade", 0.0)),
+        "elevation_high_m": segment.get("elevation_high"),
+        "elevation_low_m": segment.get("elevation_low"),
+        "start_lat": start_latlng[0] if len(start_latlng) > 0 else None,
+        "start_lng": start_latlng[1] if len(start_latlng) > 1 else None,
+        "end_lat": end_latlng[0] if len(end_latlng) > 0 else None,
+        "end_lng": end_latlng[1] if len(end_latlng) > 1 else None,
+        "climb_category": segment.get("climb_category", 0),
+        "polyline": segment.get("polyline") or segment.get("map", {}).get("polyline", ""),
+        "raw_json": json.dumps(segment, ensure_ascii=False),
+        "fetched_at": _now_iso(),
+    }
+    cols = list(row.keys())
+    placeholders = ", ".join(f":{c}" for c in cols)
+    updates = ", ".join(f"{c}=excluded.{c}" for c in cols if c != "segment_id")
+    conn.execute(
+        f"INSERT INTO strava_segments ({', '.join(cols)}) VALUES ({placeholders}) "
+        f"ON CONFLICT(segment_id) DO UPDATE SET {updates}",
+        row,
+    )
+    conn.commit()
+
+
+def get_strava_segments(conn: sqlite3.Connection) -> list[dict[str, Any]]:
+    """Retrieve all cached Strava segments."""
+    cursor = conn.execute("SELECT * FROM strava_segments ORDER BY name ASC")
+    rows = [dict(r) for r in cursor.fetchall()]
+    return rows
+
+
+def get_strava_segment_by_id(conn: sqlite3.Connection, segment_id: int) -> dict[str, Any] | None:
+    """Retrieve a single cached Strava segment."""
+    cursor = conn.execute("SELECT * FROM strava_segments WHERE segment_id = ?", (segment_id,))
+    row = cursor.fetchone()
+    return dict(row) if row else None
+
+
+def save_segment_effort(conn: sqlite3.Connection, effort: dict[str, Any]) -> None:
+    """Insert or update a computed segment effort."""
+    effort_id = effort.get("id") or f"{effort['ride_id']}_{effort['segment_id']}_{effort['start_offset_s']}"
+    row = {
+        "id": effort_id,
+        "ride_id": str(effort["ride_id"]),
+        "segment_id": int(effort["segment_id"]),
+        "name": str(effort["name"]),
+        "start_time": str(effort["start_time"]),
+        "elapsed_time_s": int(effort["elapsed_time_s"]),
+        "moving_time_s": int(effort.get("moving_time_s", effort["elapsed_time_s"])),
+        "distance_m": float(effort.get("distance_m", 0.0)),
+        "avg_power_w": effort.get("avg_power_w"),
+        "normalized_power_w": effort.get("normalized_power_w"),
+        "avg_hr_bpm": effort.get("avg_hr_bpm"),
+        "max_hr_bpm": effort.get("max_hr_bpm"),
+        "avg_cadence_rpm": effort.get("avg_cadence_rpm"),
+        "avg_speed_kmh": effort.get("avg_speed_kmh"),
+        "vam_mh": effort.get("vam_mh"),
+        "start_offset_s": int(effort["start_offset_s"]),
+        "end_offset_s": int(effort["end_offset_s"]),
+        "computed_at": _now_iso(),
+    }
+    cols = list(row.keys())
+    placeholders = ", ".join(f":{c}" for c in cols)
+    updates = ", ".join(f"{c}=excluded.{c}" for c in cols if c != "id")
+    conn.execute(
+        f"INSERT INTO strava_segment_efforts ({', '.join(cols)}) VALUES ({placeholders}) "
+        f"ON CONFLICT(id) DO UPDATE SET {updates}",
+        row,
+    )
+    conn.commit()
+
+
+def get_segment_efforts(
+    conn: sqlite3.Connection, segment_id: int, ride_id: str | None = None
+) -> list[dict[str, Any]]:
+    """Retrieve saved efforts for a segment, optionally filtered by ride."""
+    if ride_id:
+        cursor = conn.execute(
+            "SELECT * FROM strava_segment_efforts WHERE segment_id = ? AND ride_id = ? "
+            "ORDER BY elapsed_time_s ASC",
+            (segment_id, str(ride_id)),
+        )
+    else:
+        cursor = conn.execute(
+            "SELECT * FROM strava_segment_efforts WHERE segment_id = ? "
+            "ORDER BY elapsed_time_s ASC",
+            (segment_id,),
+        )
+    return [dict(r) for r in cursor.fetchall()]
+
+
+def upsert_strava_leaderboard(
+    conn: sqlite3.Connection,
+    segment_id: int,
+    leaderboard_data: dict[str, Any],
+    kom_time_s: int | None = None,
+    kom_athlete: str | None = None,
+) -> None:
+    """Cache leaderboard data for a segment."""
+    row = {
+        "segment_id": segment_id,
+        "leaderboard_json": json.dumps(leaderboard_data, ensure_ascii=False),
+        "kom_time_s": kom_time_s,
+        "kom_athlete": kom_athlete,
+        "fetched_at": _now_iso(),
+    }
+    conn.execute(
+        "INSERT INTO strava_leaderboards (segment_id, leaderboard_json, kom_time_s, kom_athlete, fetched_at) "
+        "VALUES (:segment_id, :leaderboard_json, :kom_time_s, :kom_athlete, :fetched_at) "
+        "ON CONFLICT(segment_id) DO UPDATE SET "
+        "leaderboard_json=excluded.leaderboard_json, kom_time_s=excluded.kom_time_s, "
+        "kom_athlete=excluded.kom_athlete, fetched_at=excluded.fetched_at",
+        row,
+    )
+    conn.commit()
+
+
+def get_strava_leaderboard(conn: sqlite3.Connection, segment_id: int) -> dict[str, Any] | None:
+    """Retrieve cached leaderboard for a segment."""
+    cursor = conn.execute("SELECT * FROM strava_leaderboards WHERE segment_id = ?", (segment_id,))
+    row = cursor.fetchone()
+    if not row:
+        return None
+    res = dict(row)
+    with contextlib.suppress(Exception):
+        res["data"] = json.loads(res["leaderboard_json"])
+    return res
+

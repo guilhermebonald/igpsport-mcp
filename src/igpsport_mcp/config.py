@@ -51,6 +51,9 @@ def _load_config_file() -> dict[str, str | None]:
             "ftp": str(data.get("ftp", "")).strip() or None,
             "lthr": str(data.get("lthr", "")).strip() or None,
             "region": str(data.get("region", "")).strip() or None,
+            "strava_client_id": str(data.get("strava_client_id", "")).strip() or None,
+            "strava_client_secret": str(data.get("strava_client_secret", "")).strip() or None,
+            "strava_refresh_token": str(data.get("strava_refresh_token", "")).strip() or None,
         }
     except (json.JSONDecodeError, OSError, ValueError):
         return {}
@@ -62,6 +65,9 @@ def save_config_file(
     ftp: str = "",
     lthr: str = "",
     region: str = "",
+    strava_client_id: str = "",
+    strava_client_secret: str = "",
+    strava_refresh_token: str = "",
 ) -> Path:
     """Save credentials to ``~/.igpsport-mcp/config.json`` with owner-only permissions.
 
@@ -75,6 +81,12 @@ def save_config_file(
         payload["lthr"] = lthr
     if region:
         payload["region"] = region
+    if strava_client_id:
+        payload["strava_client_id"] = strava_client_id
+    if strava_client_secret:
+        payload["strava_client_secret"] = strava_client_secret
+    if strava_refresh_token:
+        payload["strava_refresh_token"] = strava_refresh_token
     CONFIG_FILE.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     # chmod 600 — owner read/write only
     CONFIG_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)
@@ -196,6 +208,9 @@ class Config:
     region: str
     cache_dir: Path
     log_level: str
+    strava_client_id: str | None = None
+    strava_client_secret: str | None = None
+    strava_refresh_token: str | None = None
     lang: str = "zh"
 
     @property
@@ -311,6 +326,10 @@ def load_config(
     if not region:
         region = DEFAULT_REGION
 
+    strava_client_id = env.get("STRAVA_CLIENT_ID") or file_creds.get("strava_client_id")
+    strava_client_secret = env.get("STRAVA_CLIENT_SECRET") or file_creds.get("strava_client_secret")
+    strava_refresh_token = env.get("STRAVA_REFRESH_TOKEN") or file_creds.get("strava_refresh_token")
+
     return Config(
         username=username,
         password=password,
@@ -319,6 +338,9 @@ def load_config(
         region=region,
         cache_dir=cache_dir,
         log_level=log_level,
+        strava_client_id=strava_client_id,
+        strava_client_secret=strava_client_secret,
+        strava_refresh_token=strava_refresh_token,
         lang=lang_value,
     )
 

@@ -21,6 +21,10 @@ EXPECTED_TOOLS = {
     "list_workouts",
     "get_workout_detail",
     "delete_workout",
+    "sync_strava_segments",
+    "match_activity_segments",
+    "get_strava_segment_leaderboard",
+    "compare_segment_efforts",
 }
 
 

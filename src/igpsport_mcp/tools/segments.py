@@ -32,3 +32,30 @@ def register(server: FastMCP, service: IGPSportService) -> None:
     ) -> dict[str, Any]:
         """Segment leaderboard. queryType: 1=all-time, 2=yearly (or other dim)."""
         return service.get_segment_rank(segments_id, page_no, page_size, query_type)
+
+    # ── Strava segment integration tools ───────────────────────────────────
+
+    @server.tool()
+    def sync_strava_segments(page: int = 1, per_page: int = 50) -> dict[str, Any]:
+        """Fetch and sync starred Strava segments to local cache for offline activity matching."""
+        return service.sync_strava_segments(page, per_page)
+
+    @server.tool()
+    def match_activity_segments(
+        ride_id: str, segment_ids: list[int] | None = None
+    ) -> dict[str, Any]:
+        """Map-match GPS from an iGPSport activity FIT against Strava segments to compute efforts, power, HR, and VAM."""
+        return service.match_activity_segments(ride_id, segment_ids)
+
+    @server.tool()
+    def get_strava_segment_leaderboard(segment_id: int) -> dict[str, Any]:
+        """Get Strava leaderboard (KOM and top 10 rankings) for a segment."""
+        return service.get_strava_segment_leaderboard(segment_id)
+
+    @server.tool()
+    def compare_segment_efforts(
+        segment_id: int, ride_ids: list[str] | None = None
+    ) -> dict[str, Any]:
+        """Compare all historical efforts and PRs on a Strava segment across iGPSport rides."""
+        return service.compare_segment_efforts(segment_id, ride_ids)
+

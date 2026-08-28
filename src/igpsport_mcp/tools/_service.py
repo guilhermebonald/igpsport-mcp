@@ -515,6 +515,188 @@ class IGPSportService:
 
         return base
 
+    # -- Strava segment integration tools -----------------------------------
+
+    def sync_strava_segments(self, page: int = 1, per_page: int = 50) -> dict[str, Any]:
+        """Fetch and cache starred segments from Strava."""
+        from ..strava.client import StravaClient
+
+        client = StravaClient(
+            client_id=self._config.strava_client_id,
+            client_secret=self._config.strava_client_secret,
+            refresh_token=self._config.strava_refresh_token,
+        )
+        if not client.is_configured:
+            return {
+                "success": False,
+                "error": (
+                    "Strava credentials not configured. Set STRAVA_CLIENT_ID, "
+                    "STRAVA_CLIENT_SECRET, and STRAVA_REFRESH_TOKEN."
+                ),
+            }
+
+        starred = client.get_starred_segments(page=page, per_page=per_page)
+        synced = []
+        with self.db_conn() as conn:
+            for s in starred:
+                seg_detail = client.get_segment(s["id"])
+                db.upsert_strava_segment(conn, seg_detail)
+                synced.append(
+                    {
+                        "segment_id": seg_detail["id"],
+                        "name": seg_detail["name"],
+                        "distance_km": round(seg_detail["distance"] / 1000.0, 2),
+                        "average_grade": seg_detail.get("average_grade"),
+                    }
+                )
+        return {"success": True, "count": len(synced), "segments": synced}
+
+    def match_activity_segments(
+        self, ride_id: str | int, segment_ids: list[int] | None = None
+    ) -> dict[str, Any]:
+        """Perform local GPS map-matching on an iGPSport FIT file against Strava segments."""
+        from ..strava.matcher import match_segment_on_dataframe
+
+        # 1. Get FIT DataFrame
+        df, parsed = self._df_for_ride(ride_id)
+        if df.empty or "latitude" not in df.columns or "longitude" not in df.columns:
+            return {
+                "ride_id": str(ride_id),
+                "matched_efforts": [],
+                "note": "No GPS data found in activity FIT file.",
+            }
+
+        # 2. Get candidate segments
+        with self.db_conn() as conn:
+            if segment_ids:
+                segments = [
+                    db.get_strava_segment_by_id(conn, sid)
+                    for sid in segment_ids
+                    if db.get_strava_segment_by_id(conn, sid) is not None
+                ]
+            else:
+                segments = db.get_strava_segments(conn)
+
+        if not segments:
+            return {
+                "ride_id": str(ride_id),
+                "matched_efforts": [],
+                "note": "No Strava segments found in local cache. Run sync_strava_segments first.",
+            }
+
+        # 3. Match each segment
+        matched_efforts = []
+        with self.db_conn() as conn:
+            for seg in segments:
+                efforts = match_segment_on_dataframe(df, seg)
+                for eff in efforts:
+                    eff["ride_id"] = str(ride_id)
+                    db.save_segment_effort(conn, eff)
+                    matched_efforts.append(eff)
+
+        return {
+            "ride_id": str(ride_id),
+            "count": len(matched_efforts),
+            "matched_efforts": matched_efforts,
+        }
+
+    def get_strava_segment_leaderboard(self, segment_id: int) -> dict[str, Any]:
+        """Get Strava leaderboard (KOM and top 10) for a segment."""
+        from ..strava.client import StravaClient
+
+        # Check cache first
+        with self.db_conn() as conn:
+            cached = db.get_strava_leaderboard(conn, segment_id)
+            if cached:
+                return {"segment_id": segment_id, "cached": True, **cached}
+
+        client = StravaClient(
+            client_id=self._config.strava_client_id,
+            client_secret=self._config.strava_client_secret,
+            refresh_token=self._config.strava_refresh_token,
+        )
+        if not client.is_configured:
+            return {
+                "segment_id": segment_id,
+                "error": "Strava credentials not configured.",
+            }
+
+        try:
+            lb = client.get_segment_leaderboard(segment_id)
+            entries = lb.get("entries", [])
+            kom_entry = entries[0] if entries else None
+            kom_time = kom_entry.get("elapsed_time") if kom_entry else None
+            kom_athlete = kom_entry.get("athlete_name") if kom_entry else None
+
+            with self.db_conn() as conn:
+                db.upsert_strava_leaderboard(
+                    conn,
+                    segment_id,
+                    lb,
+                    kom_time_s=kom_time,
+                    kom_athlete=kom_athlete,
+                )
+
+            return {
+                "segment_id": segment_id,
+                "kom": {"athlete": kom_athlete, "time_s": kom_time},
+                "entries": entries,
+            }
+        except Exception as exc:
+            return {"segment_id": segment_id, "error": str(exc)}
+
+    def compare_segment_efforts(
+        self, segment_id: int, ride_ids: list[str] | None = None
+    ) -> dict[str, Any]:
+        """Compare all historical efforts on a specific Strava segment."""
+        with self.db_conn() as conn:
+            segment = db.get_strava_segment_by_id(conn, segment_id)
+            efforts = db.get_segment_efforts(conn, segment_id)
+
+        if not segment:
+            return {"segment_id": segment_id, "error": "Segment not found in local cache."}
+
+        if ride_ids:
+            efforts = [e for e in efforts if e["ride_id"] in ride_ids]
+
+        if not efforts:
+            return {
+                "segment_id": segment_id,
+                "segment_name": segment.get("name"),
+                "efforts": [],
+                "note": "No matched efforts found for this segment.",
+            }
+
+        # Sort efforts by time
+        sorted_efforts = sorted(efforts, key=lambda e: e["elapsed_time_s"])
+        best_effort = sorted_efforts[0]
+
+        return {
+            "segment_id": segment_id,
+            "segment_name": segment.get("name"),
+            "distance_km": round(segment.get("distance_m", 0) / 1000.0, 2),
+            "best_effort": {
+                "ride_id": best_effort["ride_id"],
+                "start_time": best_effort["start_time"],
+                "elapsed_time_s": best_effort["elapsed_time_s"],
+                "avg_power_w": best_effort.get("avg_power_w"),
+                "normalized_power_w": best_effort.get("normalized_power_w"),
+                "avg_hr_bpm": best_effort.get("avg_hr_bpm"),
+                "vam_mh": best_effort.get("vam_mh"),
+            },
+            "total_attempts": len(efforts),
+            "history": [
+                {
+                    "ride_id": e["ride_id"],
+                    "start_time": e["start_time"],
+                    "elapsed_time_s": e["elapsed_time_s"],
+                    "avg_power_w": e.get("avg_power_w"),
+                    "avg_hr_bpm": e.get("avg_hr_bpm"),
+                }
+                for e in sorted(efforts, key=lambda x: x["start_time"], reverse=True)
+            ],
+        }
+
     # -- workout tools -------------------------------------------------------
 
     def create_workout(
