@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.dengxuhui/igpsport-mcp",
+  "name": "io.github.guilhermebonald/igpsport-mcp",
   "description": "iGPSport cycling data with training metrics (NP/IF/TSS/CTL/ATL/TSB) and workout generation",
   "repository": {
-    "url": "https://github.com/dengxuhui/igpsport-mcp",
+    "url": "https://github.com/guilhermebonald/igpsport-mcp",
     "source": "github"
   },
   "version": "0.7.1",
